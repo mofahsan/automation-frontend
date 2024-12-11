@@ -1,7 +1,7 @@
 domain:
   -  name: TRV11
      flows:
-      - id: flow_id
+      - id: STATION_CODE
         description: "some description of the flow"
         sequence: 
           search1: 

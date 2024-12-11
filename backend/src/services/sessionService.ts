@@ -18,7 +18,9 @@ export const createSessionService = async (sessionId: string, data: SessionData)
         version,
         city,
         np_id: subscriberId,
-        session_payloads: {},
+        session_payloads: {
+            STATION_CODE:[]
+        },
         context_cache: {
             latest_timestamp: new Date().toISOString(),
             latest_action: '',
