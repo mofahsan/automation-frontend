@@ -1,25 +1,36 @@
 
 import { redisService } from 'ondc-automation-cache-lib';
 import { SessionData } from '../interfaces/sessionData';
+import { TransformedSessionData, SessionKeyType } from '../interfaces/sessionData';
 // import redisClient from '../config/redisConfig';
 
 
 const SESSION_EXPIRY = 3600; // 1 hour
 
 export const createSessionService = async (sessionId: string, data: SessionData) => {
-    const { subscriberId, participantType, domain } = data;
+    const { city, domain, participantType, subscriberId, subscriberUrl, version } = data;
 
-    const sessionData: SessionData = {
-        sessionId,
-        subscriberId,
-        participantType,
+
+    const transformedData: TransformedSessionData = {
+        active_session_id: sessionId,
+        type: participantType,
         domain,
-        createdAt: new Date().toISOString(),
-        transactions: {}, // Empty transactions initially
+        version,
+        city,
+        np_id: subscriberId,
+        session_payloads: {},
+        context_cache: {
+            latest_timestamp: new Date().toISOString(),
+            latest_action: '',
+            subscriber_id: subscriberId,
+            subscriber_url: subscriberUrl,
+            message_ids: [],
+        }
     };
+    
     try {
         // Store session data in Redis
-        await redisService.setKey(sessionId, JSON.stringify(sessionData), SESSION_EXPIRY);
+        await redisService.setKey(subscriberUrl, JSON.stringify(transformedData), SESSION_EXPIRY);
         // await redisClient.set(sessionId, JSON.stringify(sessionData), 'EX', 3600);
         return 'Session created successfully';
 
@@ -28,12 +39,12 @@ export const createSessionService = async (sessionId: string, data: SessionData)
     }
 };
 
-export const getSessionService = async (sessionId: string) => {
+export const getSessionService = async (sessionKey: SessionKeyType) => {
 
     try {
         // Fetch session data from Redis
         // const sessionData = await redisClient.get(sessionId);
-        const sessionData = await redisService.getKey(sessionId);
+        const sessionData = await redisService.getKey(sessionKey);
         if (!sessionData) {
             throw new Error('Session not found');
         }
@@ -48,39 +59,40 @@ export const getSessionService = async (sessionId: string) => {
 
 };
 
-// Update session data
-export const updateSessionService = async (sessionId: string, data: any) => {
 
-    const { subscriberId, participantType, domain, transactionId, transactionMode, state, details } = data;
+// Update session data
+export const updateSessionService = async (subscriber_url: string, data: any) => {
+
+    const { subscriberId, participantType, domain, transactionId, transactionMode, state, details, flowId, subscriberUrl } = data;
 
     try {
         // Retrieve the session data from Redis
-        const sessionData = await redisService.getKey(sessionId);
-        // const sessionData = await redisClient.get(sessionId);
+        const sessionData = await redisService.getKey(subscriber_url);
 
         if (!sessionData) {
             throw new Error('Session not found')
         }
 
-        const session: SessionData = JSON.parse(sessionData);
+        const session: TransformedSessionData = JSON.parse(sessionData);
 
         // Update session data fields
-        if (subscriberId) session.subscriberId = subscriberId;
-        if (participantType) session.participantType = participantType;
+        if (subscriberId) session.context_cache.subscriber_id = subscriberId;
+        if (participantType) session.type = participantType;
         if (domain) session.domain = domain;
+        if (flowId) session.current_flow_id = flowId;
 
         // If transaction data is provided, update the transaction details
-        if (transactionId && transactionMode && state) {
-            session.transactions[transactionId] = {
-                transactionMode,
-                state,
-                data: details || {},
-                createdAt: new Date().toISOString(),
-            };
-        }
+        // if (transactionId && transactionMode && state) {
+        //     session.transactions[transactionId] = {
+        //         transactionMode,
+        //         state,
+        //         data: details || {},
+        //         createdAt: new Date().toISOString(),
+        //     };
+        // }
 
         // Save the updated session data back to Redis
-        await redisService.setKey(sessionId, JSON.stringify(session), SESSION_EXPIRY);
+        await redisService.setKey(subscriber_url, JSON.stringify(session), SESSION_EXPIRY);
 
         return 'Session updated successfully';
 
