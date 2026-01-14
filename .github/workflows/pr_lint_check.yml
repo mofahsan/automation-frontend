@@ -3,7 +3,8 @@ name: Frontend Lint Check
 on:
   pull_request:
     branches:
-      - "**"
+      - "release-staging"
+      - "main"
 
 permissions:
   contents: read
